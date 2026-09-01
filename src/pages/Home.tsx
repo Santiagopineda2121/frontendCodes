@@ -1,24 +1,24 @@
 import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import "./Home.css";
-import imgNetflix from "../assets/logoN.jpgeg";
+import imgNetflix from "../assets/logoN.jpeg";
 import imgPrime from "../assets/primevideo.jpg";
-import imgVix from "../assets/logoVix.jpgeg";
-import imgParamount from "../assets/logoParamount.jpgeg";
+import imgVix from "../assets/logoVix.jpeg";
+import imgParamount from "../assets/logoParamount.jpeg";
 import imgDisney from "../assets/disney.jpg";
-import imgMax from "../assets/max.jpgeg";
-import imgViki from "../assets/viki.jpgeg";
-import imgPlex from "../assets/plex.jpgeg";
-import imgCrunchyroll from "../assets/logoCrunchyroll.jpgeg";
-import imgCanva from "../assets/canva.jpgeg";
-import imgChatgpt from "../assets/chatgpt.jpgeg";
-import imgIptv from "../assets/iptv.jpgeg";
-import imgYoutube from "../assets/logoYT.jpgeg";
-import imgAppleTv from "../assets/appletv.jpgeg";
-import imgCar1 from "../assets/car1.jpgeg";
-import imgCar2 from "../assets/car3nen.jpgeg";
-import imgCar3 from "../assets/car3.jpgeg";
-import imgOleadaTV from "../assets/oleada-tv-logo.jpgeg";
+import imgMax from "../assets/max.jpeg";
+import imgViki from "../assets/viki.jpeg";
+import imgPlex from "../assets/plex.jpeg";
+import imgCrunchyroll from "../assets/logoCrunchyroll.jpeg";
+import imgCanva from "../assets/canva.jpeg";
+import imgChatgpt from "../assets/chatgpt.jpeg";
+import imgIptv from "../assets/iptv.jpeg";
+import imgYoutube from "../assets/logoYT.jpeg";
+import imgAppleTv from "../assets/appletv.jpeg";
+import imgCar1 from "../assets/car1.jpeg";
+import imgCar2 from "../assets/car3nen.jpeg";
+import imgCar3 from "../assets/car3.jpeg";
+import imgOleadaTV from "../assets/oleada-tv-logo.jpeg";
 
 const carouselBanners = [
   { src: imgCar1, alt: "Banner 1" },
