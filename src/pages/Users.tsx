@@ -6,6 +6,7 @@ import PhoneInput from "react-phone-number-input";
 import "react-phone-number-input/style.css";
 import { isValidPhoneNumber } from "react-phone-number-input";
 import { apiFetch } from "../services/api";
+import { useRef } from "react";
 
 interface User {
   id: number;
@@ -13,6 +14,7 @@ interface User {
   email: string;
   phone: string;
   role: string;
+  locked?: number;
 }
 
 interface AuthorizedEmail {
@@ -31,12 +33,16 @@ function Users() {
   const [authorizedEmails, setAuthorizedEmails] = useState<AuthorizedEmail[]>(
     [],
   );
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [resetPassword, setResetPassword] = useState("");
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [selectedEmail, setSelectedEmail] = useState<AuthorizedEmail | null>(
     null,
   );
+  const [selectedEmailIds, setSelectedEmailIds] = useState<number[]>([]);
+  const [emailPage, setEmailPage] = useState(1);
+  const [emailsPerPage, setEmailsPerPage] = useState(8);
   const [emailSearch, setEmailSearch] = useState("");
   const [userSearch, setUserSearch] = useState("");
   const [activeSection, setActiveSection] = useState<
@@ -52,27 +58,30 @@ function Users() {
   const [newSubject, setNewSubject] = useState("");
   const [showModal, setShowModal] = useState(false);
   const [modalType, setModalType] = useState<"edit" | "delete" | null>(null);
-  const [modalEntity, setModalEntity] = useState<
-    "user" | "email" | "subject" | null
-  >(null);
+  const [modalEntity, setModalEntity] = useState<"user" | "email" | "subject" | "subjects-bulk" | null>(null);
+  const [subjectFile, setSubjectFile] = useState<File | null>(null);
+  const subjectFileInputRef = useRef<HTMLInputElement | null>(null);
   const [modalData, setModalData] = useState<any>(null);
   const [editValue, setEditValue] = useState("");
   const filteredEmails = authorizedEmails.filter((e) =>
     e.email.toLowerCase().includes(emailSearch.toLowerCase()),
   );
-  const filteredUsers = users.filter((u) =>
-    u.email.toLowerCase().includes(userSearch.toLowerCase()),
+  const filteredUsers = users.filter(
+    (u) =>
+      u.email.toLowerCase().includes(userSearch.toLowerCase()) ||
+      u.first_name.toLowerCase().includes(userSearch.toLowerCase()),
   );
+  const [emailFile, setEmailFile] = useState<File | null>(null);
   const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!selectedUser) {
-      toast.error("Selecciona un usuario");
+      toast.error(t("users.selectUser"));
       return;
     }
 
     if (!resetPassword || resetPassword.length < 6) {
-      toast.error("Mínimo 6 caracteres");
+      toast.error(t("users.passwordMin"));
       return;
     }
 
@@ -82,11 +91,13 @@ function Users() {
         body: JSON.stringify({ newPassword: resetPassword }),
       });
 
-      toast.success("Contraseña actualizada correctamente");
+      toast.success(t("users.passwordUpdated"));
       setResetPassword("");
     } catch (err: any) {
       toast.error(
-        err?.response?.data?.message || "Error actualizando contraseña",
+        toast.error(
+          err?.response?.data?.message || t("users.passwordUpdateError"),
+        ),
       );
     }
   };
@@ -95,12 +106,26 @@ function Users() {
     loadUsers();
   }, []);
 
+  const totalEmailPages = Math.max(
+    1,
+    Math.ceil(filteredEmails.length / emailsPerPage),
+  );
+
+  const paginatedEmails = filteredEmails.slice(
+    (emailPage - 1) * emailsPerPage,
+    emailPage * emailsPerPage,
+  );
+
+  useEffect(() => {
+    setEmailPage(1);
+  }, [emailSearch, selectedUser, emailsPerPage]);
+
   const loadUsers = async () => {
     try {
       const data = await apiFetch("/api/admin/users");
       setUsers(data);
     } catch {
-      toast.error("Error cargando usuarios");
+      toast.error(t("users.loadUsersError"));
     }
   };
 
@@ -117,6 +142,7 @@ function Users() {
         if (selectedUser) {
           setSelectedUser(null);
           setSelectedEmail(null);
+          setSelectedEmailIds([]);
           setAuthorizedEmails([]);
           setSubjects([]);
           setActiveSection("users");
@@ -128,10 +154,44 @@ function Users() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [selectedUser, selectedEmail]);
 
+  const toggleEmailSelection = (id: number) => {
+    setSelectedEmailIds((prev) =>
+      prev.includes(id) ? prev.filter((eid) => eid !== id) : [...prev, id],
+    );
+
+    setActiveSection("subjects");
+  };
+
+  const allFilteredSelected =
+    filteredEmails.length > 0 &&
+    filteredEmails.every((e) => selectedEmailIds.includes(e.id));
+
+  const toggleSelectAllEmails = () => {
+    if (allFilteredSelected) {
+      setSelectedEmailIds((prev) =>
+        prev.filter((id) => !filteredEmails.some((e) => e.id === id)),
+      );
+    } else {
+      setSelectedEmailIds((prev) => [
+        ...new Set([...prev, ...filteredEmails.map((e) => e.id)]),
+      ]);
+    }
+  };
+
+  const openDeleteAllSubjectsModal = () => {
+    if (subjects.length === 0) return;
+
+    setModalType("delete");
+    setModalEntity("subjects-bulk");
+    setModalData({ ids: subjects.map((s) => s.id) });
+    setShowModal(true);
+  };
+
   const handleSelectUser = async (u: User) => {
     if (selectedUser?.id === u.id) {
       setSelectedUser(null);
       setSelectedEmail(null);
+      setSelectedEmailIds([]); 
       setAuthorizedEmails([]);
       setSubjects([]);
       setActiveSection("users");
@@ -140,6 +200,7 @@ function Users() {
 
     setSelectedUser(u);
     setSelectedEmail(null);
+    setSelectedEmailIds([]);
     setSubjects([]);
     setActiveSection("emails");
 
@@ -147,7 +208,148 @@ function Users() {
       const data = await apiFetch(`/api/admin/users/${u.id}/authorized-emails`);
       setAuthorizedEmails(data);
     } catch {
-      toast.error("Error cargando correos");
+      toast.error(t("users.loadEmailsError"));
+    }
+  };
+  const handleBulkEmails = async () => {
+    if (!emailFile || !selectedUser) {
+      toast.error(t("users.selectUserFile"));
+      return;
+    }
+
+    const text = await emailFile.text();
+
+    const emails = text
+      .split(";")
+      .map((e) => e.trim())
+      .filter((e) => e.includes("@"));
+
+    if (emails.length === 0) {
+      toast.error(t("users.invalidEmails"));
+      return;
+    }
+
+    try {
+      await apiFetch("/api/admin/authorized-emails/bulk", {
+        method: "POST",
+        body: JSON.stringify({
+          user_id: selectedUser.id,
+          emails,
+        }),
+      });
+
+      toast.success(t("users.emailsAdded", { count: emails.length }));
+
+      const data = await apiFetch(
+        `/api/admin/users/${selectedUser.id}/authorized-emails`,
+      );
+
+      setAuthorizedEmails(data);
+      setEmailFile(null);
+
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    } catch {
+      toast.error(t("users.uploadEmailsError"));
+    }
+  };
+
+  const handleCreateSubject = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    const targetIds =
+      selectedEmailIds.length > 0
+        ? selectedEmailIds
+        : selectedEmail
+          ? [selectedEmail.id]
+          : [];
+
+    if (!selectedUser || targetIds.length === 0) {
+      toast.error(t("users.selectEmailFirst"));
+      return;
+    }
+
+    if (!newSubject.trim()) {
+      toast.error(t("users.subjectRequired"));
+      return;
+    }
+
+    try {
+      await apiFetch("/api/admin/subjects", {
+        method: "POST",
+        body: JSON.stringify({
+          user_id: selectedUser.id,
+          name: newSubject,
+          authorized_email_ids: targetIds,
+        }),
+      });
+
+      toast.success(t("users.subjectCreated"));
+      setNewSubject("");
+
+      if (selectedEmail) {
+        const data = await apiFetch(
+          `/api/admin/authorized-emails/${selectedEmail.id}/subjects`,
+        );
+        setSubjects(data);
+      }
+    } catch (err: any) {
+      toast.error(err.message || t("users.createSubjectError"));
+    }
+  };
+
+  const handleBulkSubjects = async () => {
+    const targetIds =
+      selectedEmailIds.length > 0
+        ? selectedEmailIds
+        : selectedEmail
+          ? [selectedEmail.id]
+          : [];
+
+    if (!subjectFile || !selectedUser || targetIds.length === 0) {
+      toast.error(t("users.selectEmailFirst"));
+      return;
+    }
+
+    const text = await subjectFile.text();
+
+    const subjects = text
+      .split(";")
+      .map((s) => s.trim())
+      .filter((s) => s.length > 0);
+
+    if (subjects.length === 0) {
+      toast.error(t("users.invalidSubjects"));
+      return;
+    }
+
+    try {
+      await apiFetch("/api/admin/subjects/bulk", {
+        method: "POST",
+        body: JSON.stringify({
+          user_id: selectedUser.id,
+          authorized_email_ids: targetIds,
+          subjects,
+        }),
+      });
+
+      toast.success(t("users.subjectsAdded", { count: subjects.length }));
+
+      if (selectedEmail) {
+        const data = await apiFetch(
+          `/api/admin/authorized-emails/${selectedEmail.id}/subjects`,
+        );
+        setSubjects(data);
+      }
+
+      setSubjectFile(null);
+
+      if (subjectFileInputRef.current) {
+        subjectFileInputRef.current.value = "";
+      }
+    } catch {
+      toast.error(t("users.uploadSubjectsError"));
     }
   };
 
@@ -168,7 +370,7 @@ function Users() {
       );
       setSubjects(data);
     } catch {
-      toast.error("Error cargando subjects");
+      toast.error(t("users.loadSubjectsError"));
     }
   };
 
@@ -176,17 +378,17 @@ function Users() {
     e.preventDefault();
 
     if (!newUser.first_name || !newUser.email || !newUser.password) {
-      toast.error("Todos los campos son obligatorios");
+      toast.error(t("users.requiredFields"));
       return;
     }
 
     if (newUser.password.length < 6) {
-      toast.error("La contraseña debe tener mínimo 6 caracteres");
+      toast.error(t("users.passwordMin"));
       return;
     }
 
     if (newUser.phone && !isValidPhoneNumber(newUser.phone)) {
-      toast.error("Número de teléfono inválido");
+      toast.error(t("users.invalidPhone"));
       return;
     }
 
@@ -196,7 +398,7 @@ function Users() {
         body: JSON.stringify(newUser),
       });
 
-      toast.success("Usuario creado correctamente");
+      toast.success(t("users.userCreated"));
 
       setNewUser({
         first_name: "",
@@ -207,7 +409,7 @@ function Users() {
 
       loadUsers();
     } catch (err: any) {
-      toast.error(err.message || "Error creando usuario");
+      toast.error(err.message || t("users.createUserError"));
     }
   };
 
@@ -215,12 +417,12 @@ function Users() {
     e.preventDefault();
 
     if (!selectedUser) {
-      toast.error("Selecciona un usuario primero");
+      toast.error(t("users.selectUserFirst"));
       return;
     }
 
     if (!newEmail.trim()) {
-      toast.error("El correo es obligatorio");
+      toast.error(t("users.emailRequired"));
       return;
     }
 
@@ -233,7 +435,7 @@ function Users() {
         }),
       });
 
-      toast.success("Correo agregado");
+      toast.success(t("users.emailAdded"));
       setNewEmail("");
 
       const data = await apiFetch(
@@ -241,42 +443,7 @@ function Users() {
       );
       setAuthorizedEmails(data);
     } catch (err: any) {
-      toast.error(err.message || "Error agregando correo");
-    }
-  };
-
-  const handleCreateSubject = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!selectedUser || !selectedEmail) {
-      toast.error("Selecciona un correo primero");
-      return;
-    }
-
-    if (!newSubject.trim()) {
-      toast.error("El subject es obligatorio");
-      return;
-    }
-
-    try {
-      await apiFetch("/api/admin/subjects", {
-        method: "POST",
-        body: JSON.stringify({
-          user_id: selectedUser.id,
-          name: newSubject,
-          authorized_email_id: selectedEmail.id,
-        }),
-      });
-
-      toast.success("Subject creado y asignado");
-      setNewSubject("");
-
-      const data = await apiFetch(
-        `/api/admin/authorized-emails/${selectedEmail.id}/subjects`,
-      );
-      setSubjects(data);
-    } catch (err: any) {
-      toast.error(err.message || "Error creando subject");
+      toast.error(err.message || t("users.addEmailError"));
     }
   };
 
@@ -329,7 +496,7 @@ function Users() {
           if (selectedEmail) handleSelectEmail(selectedEmail);
         }
 
-        toast.success("Actualizado correctamente");
+        toast.success(t("users.updated"));
       }
 
       if (modalType === "delete") {
@@ -337,7 +504,6 @@ function Users() {
           await apiFetch(`/api/admin/users/${modalData.id}`, {
             method: "DELETE",
           });
-
           loadUsers();
         }
 
@@ -350,7 +516,6 @@ function Users() {
             const data = await apiFetch(
               `/api/admin/users/${selectedUser.id}/authorized-emails`,
             );
-
             setAuthorizedEmails(data);
           }
         }
@@ -364,17 +529,34 @@ function Users() {
             const data = await apiFetch(
               `/api/admin/authorized-emails/${selectedEmail.id}/subjects`,
             );
-
             setSubjects(data);
           }
         }
 
-        toast.success("Eliminado correctamente");
+        if (modalEntity === "subjects-bulk") {
+          await apiFetch("/api/admin/subjects/delete-bulk", {
+            method: "POST",
+            body: JSON.stringify({ ids: modalData.ids }),
+          });
+
+          if (selectedEmail) {
+            const data = await apiFetch(
+              `/api/admin/authorized-emails/${selectedEmail.id}/subjects`,
+            );
+            setSubjects(data);
+          }
+
+          toast.success(t("users.subjectsDeleted"));
+          setShowModal(false);
+          return;
+        }
+
+        toast.success(t("users.deleted"));
       }
 
       setShowModal(false);
     } catch (err) {
-      toast.error("Error en la operación");
+      toast.error(t("users.operationError"));
     }
   };
 
@@ -389,15 +571,49 @@ function Users() {
                 key={u.id}
                 className={`user-chip ${selectedUser?.id === u.id ? "active" : ""}`}
               >
-                <span onClick={() => handleSelectUser(u)}>{u.email}</span>
+                <span
+                  onClick={() => handleSelectUser(u)}
+                  className="user-chip-text"
+                >
+                  {u.email}
+
+                  {u.role === "admin" && (
+                    <span className="admin-badge">👑 ADMIN</span>
+                  )}
+
+                  {u.locked === 1 && (
+                    <span className="locked-badge">🔒 BLOQUEADO</span>
+                  )}
+                </span>
 
                 <div className="chip-actions">
+                  {u.locked === 1 && (
+                    <button
+                      className="unlock-btn"
+                      onClick={async () => {
+                        try {
+                          await apiFetch(`/api/admin/users/${u.id}/unlock`, {
+                            method: "PUT",
+                          });
+
+                          toast.success("Usuario desbloqueado");
+                          loadUsers();
+                        } catch {
+                          toast.error("Error desbloqueando usuario");
+                        }
+                      }}
+                    >
+                      🔓
+                    </button>
+                  )}
+
                   <div
                     className="chip-btn edit"
                     onClick={() => openEditModal("user", u)}
                   >
                     ✎
                   </div>
+
                   <div
                     className="chip-btn delete"
                     onClick={() => openDeleteModal("user", u)}
@@ -423,13 +639,21 @@ function Users() {
 
             <div className="authorized-emails-container">
               <div className="authorized-emails-wrapper">
-                {filteredEmails.map((e) => (
+                {paginatedEmails.map((e) => (
                   <div
                     key={e.id}
                     className={`subject-chip ${
                       selectedEmail?.id === e.id ? "active" : ""
-                    }`}
+                    } ${selectedEmailIds.includes(e.id) ? "checked" : ""}`}
                   >
+                    <input
+                      type="checkbox"
+                      className="email-checkbox"
+                      checked={selectedEmailIds.includes(e.id)}
+                      onClick={(ev) => ev.stopPropagation()}
+                      onChange={() => toggleEmailSelection(e.id)}
+                    />
+
                     <span onClick={() => handleSelectEmail(e)}>{e.email}</span>
 
                     <div className="chip-actions">
@@ -450,6 +674,53 @@ function Users() {
                 ))}
               </div>
 
+              <div className="email-list-controls">
+                <label className="select-all-label">
+                  <input
+                    type="checkbox"
+                    checked={allFilteredSelected}
+                    onChange={toggleSelectAllEmails}
+                  />
+                  {t("users.selectAll")}
+                </label>
+
+                {totalEmailPages > 1 && (
+                  <div className="pagination-controls">
+                    <button
+                      type="button"
+                      disabled={emailPage === 1}
+                      onClick={() => setEmailPage((p) => p - 1)}
+                    >
+                      ‹
+                    </button>
+                    <span>
+                      {emailPage} / {totalEmailPages}
+                    </span>
+                    <button
+                      type="button"
+                      disabled={emailPage === totalEmailPages}
+                      onClick={() => setEmailPage((p) => p + 1)}
+                    >
+                      ›
+                    </button>
+                  </div>
+                )}
+
+                <div className="page-size-select">
+                  <label>{t("users.perPage")}</label>
+                  <select
+                    value={emailsPerPage}
+                    onChange={(e) => setEmailsPerPage(Number(e.target.value))}
+                  >
+                    <option value={6}>6</option>
+                    <option value={8}>8</option>
+                    <option value={12}>12</option>
+                    <option value={16}>16</option>
+                    <option value={24}>24</option>
+                  </select>
+                </div>
+              </div>
+
               <div className="authorized-search-bottom">
                 <input
                   type="text"
@@ -462,7 +733,28 @@ function Users() {
           </div>
 
           <div className="right-bottom">
-            <h3>{t("users.authorizedSubjects")}</h3>
+            {selectedEmailIds.length > 0 && (
+              <div className="selection-badge">
+                {selectedEmailIds.length} correo(s) seleccionado(s) — el asunto
+                se asignará a todos
+                <button type="button" onClick={() => setSelectedEmailIds([])}>
+                  Limpiar
+                </button>
+              </div>
+            )}
+            <div className="subjects-header">
+              <h3>{t("users.authorizedSubjects")}</h3>
+
+              {subjects.length > 0 && (
+                <button
+                  type="button"
+                  className="delete-all-btn"
+                  onClick={openDeleteAllSubjectsModal}
+                >
+                  {t("users.deleteAll")}
+                </button>
+              )}
+            </div>
             <div className="subjects-wrapper">
               {subjects.map((s) => (
                 <div key={s.id} className="subject-chip">
@@ -536,7 +828,18 @@ function Users() {
               />
               <button type="submit">{t("users.addEmail")}</button>
             </form>
+            <div className="bulk-upload">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".txt"
+                onChange={(e) => setEmailFile(e.target.files?.[0] || null)}
+              />
 
+              <button type="button" onClick={handleBulkEmails}>
+                {t("users.uploadTxt")}
+              </button>
+            </div>
             <form onSubmit={handleResetPassword} className="crud-form">
               <input
                 type="password"
@@ -549,14 +852,29 @@ function Users() {
           </div>
         )}
         {activeSection === "subjects" && selectedUser && (
-          <form onSubmit={handleCreateSubject} className="crud-form">
-            <input
-              placeholder={t("users.newSubject")}
-              value={newSubject}
-              onChange={(e) => setNewSubject(e.target.value)}
-            />
-            <button type="submit">{t("users.createSubject")}</button>
-          </form>
+          <div className="crud-row">
+            <form onSubmit={handleCreateSubject} className="crud-form">
+              <input
+                placeholder={t("users.newSubject")}
+                value={newSubject}
+                onChange={(e) => setNewSubject(e.target.value)}
+              />
+              <button type="submit">{t("users.createSubject")}</button>
+            </form>
+
+            <div className="bulk-upload-subjects">
+              <input
+                ref={subjectFileInputRef}
+                type="file"
+                accept=".txt"
+                onChange={(e) => setSubjectFile(e.target.files?.[0] || null)}
+              />
+
+              <button type="button" onClick={handleBulkSubjects}>
+                {t("users.uploadTxt")}
+              </button>
+            </div>
+          </div>
         )}
       </div>
       {showModal && (
@@ -576,7 +894,11 @@ function Users() {
 
             {modalType === "delete" && (
               <>
-                <h3>{t("users.confirmDelete")}</h3>
+                <h3>
+                  {modalEntity === "subjects-bulk"
+                    ? t("users.confirmDeleteAllSubjects")
+                    : t("users.confirmDelete")}
+                </h3>
                 <button onClick={handleConfirm}>{t("users.confirm")}</button>
                 <button onClick={() => setShowModal(false)}>
                   {t("users.cancel")}
