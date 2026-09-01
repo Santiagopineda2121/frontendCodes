@@ -11,7 +11,7 @@
   background: var(--bg-main);
   color: var(--text-primary);
   min-width: 0;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .navbar {
@@ -22,6 +22,7 @@
   justify-content: space-between;
   padding: 0 30px;
   border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+  overflow: visible;
 }
 
 .nav-left {
@@ -95,6 +96,59 @@
   padding: 6px 10px;
   border-radius: 6px;
   cursor: pointer;
+}
+
+.lang-dropdown {
+  position: relative;
+}
+
+.lang-btn {
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: none;
+  background: #1f2937;
+  color: white;
+  cursor: pointer;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.lang-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  background: #1f2937;
+  border-radius: 6px;
+  overflow: hidden;
+  z-index: 9999;
+  min-width: 100%;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+}
+
+.lang-option {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 8px 14px;
+  background: transparent;
+  border: none;
+  color: white;
+  cursor: pointer;
+  font-size: 14px;
+  white-space: nowrap;
+}
+
+.lang-option:hover {
+  background: #374151;
+}
+
+.lang-option.active {
+  background: #374151;
+  font-weight: bold;
 }
 
 @media (max-width: 900px) {
