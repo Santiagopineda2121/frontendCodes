@@ -19,6 +19,16 @@ function Layout() {
     navigate("/login");
   };
 
+  const languages = [
+    { code: "es", flag: "es", label: "ES" },
+    { code: "en", flag: "us", label: "EN" },
+    { code: "pt", flag: "br", label: "PT" },
+  ];
+
+  const [langOpen, setLangOpen] = useState(false);
+  const currentLang =
+    languages.find((l) => l.code === i18n.language) || languages[0];
+
   return (
     <div className="layout">
       <Sidebar isOpen={sidebarOpen} />
@@ -41,15 +51,33 @@ function Layout() {
               {theme === "dark" ? "☀️" : "🌙"}
             </button>
 
-            <select
-              onChange={(e) => i18n.changeLanguage(e.target.value)}
-              defaultValue={i18n.language}
-              className="lang-select"
-            >
-              <option value="es">🇪🇸 ES</option>
-              <option value="en">🇺🇸 EN</option>
-              <option value="pt">🇧🇷 PT</option>
-            </select>
+            <div className="lang-dropdown">
+              <button
+                className="lang-btn"
+                onClick={() => setLangOpen(!langOpen)}
+              >
+                <span className={`fi fi-${currentLang.flag}`}></span>
+                {currentLang.label} ▾
+              </button>
+
+              {langOpen && (
+                <div className="lang-menu">
+                  {languages.map((lang) => (
+                    <button
+                      key={lang.code}
+                      className={`lang-option ${i18n.language === lang.code ? "active" : ""}`}
+                      onClick={() => {
+                        i18n.changeLanguage(lang.code);
+                        setLangOpen(false);
+                      }}
+                    >
+                      <span className={`fi fi-${lang.flag}`}></span>
+                      {lang.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
 
             <button className="logout-btn" onClick={handleLogout}>
               {t("navbar.logout")}
@@ -62,7 +90,7 @@ function Layout() {
         </main>
 
         <footer className="footer">
-          © {new Date().getFullYear()} Kitty Codes v1 - Dev:&nbsp;
+          © {new Date().getFullYear()} Kitty Codes - Dev:&nbsp;
           <a
             href="https://wa.me/573024824806"
             target="_blank"
