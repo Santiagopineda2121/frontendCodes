@@ -93,12 +93,9 @@ export default function Profile() {
             <label>{t("profile.phone")}</label>
             <div className="profile-value">{profile.phone || "-"}</div>
           </div>
-
           <div className="profile-field">
             <label>{t("profile.password")}</label>
-            <div className="profile-value password-hidden">
-              ************
-            </div>
+            <div className="profile-value password-hidden">************</div>
           </div>
 
           <div className="profile-field">
@@ -123,7 +120,7 @@ export default function Profile() {
             type="password"
             placeholder={t("profile.newPassword")}
             value={newPassword}
-            onChange={(e) => setNewPassword(e.target.value)}
+            onChange={(e) => setNewPassword(e.target.value)}  
           />
           <button onClick={updatePassword} disabled={updating}>
             {updating ? t("profile.updating") : t("profile.updatePassword")}
