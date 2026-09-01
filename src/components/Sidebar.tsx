@@ -44,16 +44,16 @@ function Sidebar({ isOpen }: SidebarProps) {
   return (
     <div className={`sidebar ${isOpen ? "open" : ""}`}>
       <div className="sidebar-top">
-        <h2>Kitty Codes</h2>
+        <h2>{t("sidebar.title")}</h2>
 
-        <img src={logo} alt="Kitty Codes Logo" className="sidebar-logo" />
+        <a href="/">
+          <img src={logo} alt="Kitty Codes Logo" className="sidebar-logo" />
+        </a>
 
         <nav>
           <Link to="/home">{t("sidebar.home")}</Link>
           <Link to="/codes">{t("sidebar.codes")}</Link>
-          <Link to="/authorizedEmails">
-            {t("sidebar.authorizedEmails")}
-          </Link>
+          <Link to="/authorizedEmails">{t("sidebar.authorizedEmails")}</Link>
           {user.role === "admin" && (
             <Link to="/users">{t("sidebar.users")}</Link>
           )}
