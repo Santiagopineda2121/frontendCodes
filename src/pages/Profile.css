@@ -51,6 +51,12 @@
   color: #ffcc70;
 }
 
+.profile-saldo {
+  color: #a5b4fc;
+  font-weight: 700;
+  font-size: 16px;
+}
+
 .profile-update {
   margin-top: 40px;
   display: flex;
@@ -58,13 +64,16 @@
 }
 
 .profile-update input {
-  width: 95%;
+  flex: 1;
   height: 45px;
   border-radius: 8px;
   border: none;
   padding: 0 15px;
   background: var(--profile-input-bg);
   color: var(--profile-text);
+  font-size: 16px;
+  outline: none;
+  box-sizing: border-box;
 }
 
 .profile-update button {
@@ -75,6 +84,9 @@
   color: white;
   cursor: pointer;
   transition: 0.3s;
+  white-space: nowrap;
+  height: 45px;
+  font-size: 14px;
 }
 
 .profile-update button:hover {
@@ -110,41 +122,59 @@
 }
 
 @media (max-width: 768px) {
-
   .profile-container {
-    padding: 30px 15px;
+    padding: 20px 15px;
   }
 
   .profile-card {
-    padding: 30px;
+    padding: 24px 20px;
   }
 
   .profile-card h2 {
     font-size: 22px;
+    margin-bottom: 20px;
   }
 
   .profile-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
   }
 
   .profile-update {
     flex-direction: column;
+    gap: 12px;
+  }
+
+  .profile-update input {
+    width: 100%;
+    font-size: 16px;
   }
 
   .profile-update button {
     height: 45px;
+    width: 100%;
+    font-size: 15px;
   }
 }
 
 @media (max-width: 480px) {
+  .profile-container {
+    padding: 16px 12px;
+  }
 
   .profile-card {
-    padding: 25px;
-    border-radius: 14px;
+    padding: 20px 16px;
+    border-radius: 12px;
   }
 
   .profile-card h2 {
-    font-size: 20px;
+    font-size: 19px;
+    margin-bottom: 16px;
+  }
+
+  .profile-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
   }
 
   .profile-field label {
@@ -153,29 +183,30 @@
 
   .profile-value {
     font-size: 14px;
+    min-height: 42px;
   }
 
   .profile-update input {
-    font-size: 14px;
+    font-size: 16px;
+    height: 44px;
   }
 
   .profile-update button {
     font-size: 14px;
+    height: 44px;
   }
 }
 
 @media (max-width: 360px) {
-
   .profile-card {
-    padding: 20px;
+    padding: 16px 12px;
   }
 
   .profile-card h2 {
-    font-size: 18px;
+    font-size: 17px;
   }
 
   .profile-value {
     font-size: 13px;
   }
-
 }
